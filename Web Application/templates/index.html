@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golf Swing Analyzer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #1a472a, #2d5a1b); padding: 20px 30px; display: flex; align-items: center; gap: 15px; }
+  .header h1 { font-size: 1.8em; color: #7fff7f; }
+  .header .subtitle { color: #aaffaa; font-size: 0.9em; }
+  .status-dot { width: 12px; height: 12px; border-radius: 50%; background: #ff4444; }
+  .status-dot.online { background: #44ff44; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .container { max-width: 1300px; margin: 0 auto; padding: 30px 20px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 25px; }
+  .tab { padding: 12px 28px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 1em; font-weight: 600; background: #1e2130; color: #888; border: none; transition: all 0.2s; }
+  .tab.active { background: #1a472a; color: #7fff7f; }
+  .tab:hover:not(.active) { background: #252840; color: #ccc; }
+  .tab-content { display: none; background: #1a1d2e; border-radius: 0 8px 8px 8px; padding: 25px; }
+  .tab-content.active { display: block; }
+  .camera-section { display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
+  .camera-feed { position: relative; background: #000; border-radius: 10px; overflow: hidden; aspect-ratio: 4/3; }
+  .camera-feed img { width: 100%; height: 100%; object-fit: cover; }
+  .controls { display: flex; flex-direction: column; gap: 15px; }
+  .btn { padding: 14px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: 600; transition: all 0.2s; width: 100%; }
+  .btn-record { background: #cc3333; color: white; }
+  .btn-record:hover { background: #ff4444; }
+  .btn-stop { background: #444; color: white; }
+  .btn-stop:hover { background: #666; }
+  .btn-process { background: #1a6b3c; color: #7fff7f; }
+  .btn-process:hover { background: #22883d; }
+  .btn-analyze { background: #2d4a8a; color: #aaccff; }
+  .btn-analyze:hover { background: #3a5faa; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .upload-zone { border: 2px dashed #444; border-radius: 12px; padding: 50px 20px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .upload-zone:hover, .upload-zone.dragover { border-color: #7fff7f; background: #0a2a14; }
+  .upload-zone .icon { font-size: 3em; margin-bottom: 15px; }
+  .upload-zone p { color: #888; margin-top: 8px; font-size: 0.9em; }
+  #fileInput { display: none; }
+  .progress-bar { background: #333; border-radius: 10px; height: 12px; overflow: hidden; margin: 10px 0; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #1a6b3c, #7fff7f); border-radius: 10px; transition: width 0.3s; }
+  .status-msg { font-size: 0.9em; color: #aaa; margin: 5px 0; }
+  .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .card { background: #252840; border-radius: 10px; padding: 20px; }
+  .card h3 { color: #7fff7f; margin-bottom: 15px; font-size: 1.1em; }
+  /* Video comparison */
+  .video-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .video-box { background: #1a1d2e; border-radius: 10px; overflow: hidden; }
+  .video-box-label { padding: 10px 14px; font-size: 0.85em; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .video-box-label.user { background: #1a3a2a; color: #7fff7f; }
+  .video-box-label.pro { background: #1a2a3a; color: #aaccff; }
+  .video-box video { width: 100%; display: block; background: #000; max-height: 340px; }
+  /* Pro ranking */
+  .pro-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
+  .pro-item:hover { background: #1a2a3a; }
+  .pro-item.selected { border-color: #7fff7f; background: #0a2a14; }
+  .pro-rank { font-size: 1.4em; font-weight: bold; color: #888; width: 30px; }
+  .pro-rank.rank-1 { color: #ffd700; }
+  .pro-rank.rank-2 { color: #c0c0c0; }
+  .pro-rank.rank-3 { color: #cd7f32; }
+  .pro-info { flex: 1; }
+  .pro-name { font-weight: 600; color: #e0e0e0; }
+  .pro-desc { font-size: 0.8em; color: #888; }
+  .pro-bar-wrap { width: 80px; }
+  .pro-bar { height: 6px; background: #444; border-radius: 3px; overflow: hidden; }
+  .pro-bar-fill { height: 100%; background: linear-gradient(90deg,#1a6b3c,#7fff7f); border-radius: 3px; }
+  /* Delta table */
+  .delta-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+  .delta-table th { padding: 8px 10px; text-align: left; color: #666; font-weight: 600; border-bottom: 1px solid #2a2d3e; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px; }
+  .delta-table td { padding: 9px 10px; border-bottom: 1px solid #1e2030; }
+  .delta-table tr:last-child td { border-bottom: none; }
+  .delta-table tr:hover td { background: #1a1d2e; }
+  .phase-badge { font-size: 0.75em; padding: 2px 7px; border-radius: 4px; font-weight: 600; background: #252840; color: #888; }
+  .diff-val { font-weight: 700; font-size: 1em; }
+  .diff-pos { color: #ff9966; }  /* needs less — user has more */
+  .diff-neg { color: #66ccff; }  /* needs more — user has less */
+  .diff-bar-wrap { width: 80px; }
+  .diff-bar { height: 6px; background: #333; border-radius: 3px; overflow: hidden; position: relative; }
+  .diff-bar-fill { height: 100%; border-radius: 3px; position: absolute; }
+  .dir-badge { font-size: 0.75em; padding: 3px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+  .dir-badge.more { background: #1a4a2a; color: #7fff7f; }
+  .dir-badge.less { background: #4a2a1a; color: #ff9966; }
+  /* Advice */
+  .advice-box { background: #1a1d2e; border-radius: 10px; padding: 20px; line-height: 1.7; font-size: 0.95em; white-space: pre-wrap; border-left: 4px solid #7fff7f; }
+  .advice-box strong { color: #7fff7f; }
+  .info-box { background: #1a2a1a; border: 1px solid #2a4a2a; border-radius: 8px; padding: 12px 15px; font-size: 0.85em; color: #aaa; margin: 10px 0; }
+  .info-box .label { color: #7fff7f; font-weight: 600; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #444; border-top-color: #7fff7f; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .hidden { display: none !important; }
+  .section-title { font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px; color: #555; margin-bottom: 12px; }
+  .board-video-item { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#1a1d2e; border-radius:8px; margin-bottom:8px; border:2px solid transparent; cursor:pointer; transition:all 0.2s; }
+  .board-video-item:hover { border-color:#444; background:#252840; }
+  .board-video-item.selected { border-color:#7fff7f; background:#0a2a14; }
+  .board-video-name { font-size:0.9em; color:#ccc; font-weight:500; }
+  .board-video-meta { font-size:0.75em; color:#666; margin-top:2px; }
+  .board-video-btn { padding:5px 12px; border:none; border-radius:5px; font-size:0.8em; font-weight:600; cursor:pointer; background:#1a6b3c; color:#7fff7f; transition:all 0.2s; }
+  .board-video-btn:hover { background:#22883d; }
+  hr.divider { border:none; border-top:1px solid #2a2d3e; margin:20px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>⛳ Golf Swing Analyzer</h1>
+    <div class="subtitle">Powered by KL730 NPU + RTMPose + Gemma2</div>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+    <span id="boardStatusText" style="font-size:0.85em;color:#888">Checking board...</span>
+    <div class="status-dot" id="statusDot"></div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('record')">📹 Record Swing</button>
+    <button class="tab" onclick="switchTab('upload')">📁 Upload Video</button>
+    <button class="tab" onclick="switchTab('results')">📊 Results</button>
+  </div>
+
+  <!-- Record Tab -->
+  <div id="tab-record" class="tab-content active">
+    <div class="camera-section">
+      <div class="camera-feed">
+        <img id="cameraFeed" src="/api/board/stream" alt="Camera feed">
+      </div>
+      <div class="controls">
+        <div class="info-box"><div class="label">Board</div>192.168.1.110:5000</div>
+        <div class="section-title">Recording</div>
+        <button class="btn btn-record" id="btnRecord" onclick="startRecord()">🔴 Start Recording</button>
+        <button class="btn btn-stop hidden" id="btnStop" onclick="stopRecord()">⏹ Stop Recording</button>
+        <div id="recInfo" class="info-box hidden">
+          <div class="label">Recording</div><span id="recFrames">0</span> frames
+        </div>
+        <div class="section-title">Processing</div>
+        <button class="btn btn-process" id="btnProcess" onclick="processVideo()" disabled>⚡ Process Swing</button>
+        <div id="progressSection" class="hidden">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+          <div class="status-msg" id="progressMsg">Processing...</div>
+        </div>
+        <button class="btn btn-analyze hidden" id="btnAnalyze" onclick="analyzeSwing()">🧠 Get AI Coaching</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Tab -->
+  <div id="tab-upload" class="tab-content">
+    <div class="upload-zone" id="uploadZone"
+         onclick="document.getElementById('fileInput').click()"
+         ondragover="event.preventDefault();this.classList.add('dragover')"
+         ondragleave="this.classList.remove('dragover')"
+         ondrop="handleDrop(event)">
+      <div class="icon">💻</div>
+      <h3>Upload from your PC</h3>
+      <p>Drop video here or click to browse — MP4, MOV, AVI supported</p>
+    </div>
+    <input type="file" id="fileInput" accept="video/*" onchange="handleFile(event)">
+    <div id="uploadInfo" class="info-box hidden" style="margin-top:12px">
+      <div class="label">Selected</div><span id="uploadFileName"></span>
+    </div>
+    <div style="margin-top:12px">
+      <button class="btn btn-process" id="btnUploadProcess" onclick="processUpload()" disabled>⚡ Process Selected Video</button>
+    </div>
+    <div id="uploadProgress" class="hidden" style="margin-top:12px">
+      <div class="progress-bar"><div class="progress-fill" id="uploadProgressFill" style="width:0%"></div></div>
+      <div class="status-msg" id="uploadProgressMsg">Processing...</div>
+    </div>
+    <button class="btn btn-analyze hidden" id="btnUploadAnalyze" onclick="analyzeSwing()" style="margin-top:12px">🧠 Get AI Coaching</button>
+    <hr class="divider">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:1em;font-weight:600;color:#7fff7f">📂 Videos on Board</div>
+      <button onclick="loadBoardVideos()"
+              style="padding:7px 16px;background:#252840;color:#aaa;border:1px solid #444;border-radius:6px;cursor:pointer;font-size:0.85em;font-weight:600">
+        🔄 Refresh
+      </button>
+    </div>
+    <div id="boardVideosList">
+      <div style="color:#555;font-size:0.85em;padding:12px;background:#1a1d2e;border-radius:8px;text-align:center">
+        Click Refresh to see videos recorded on the board
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Tab -->
+  <div id="tab-results" class="tab-content">
+    <div id="noResults" style="text-align:center;padding:60px;color:#555">
+      <div style="font-size:3em">⛳</div>
+      <p style="margin-top:15px">Process a swing to see results here</p>
+    </div>
+    <div id="resultsContent" class="hidden">
+      <div class="results-grid">
+
+        <!-- Video comparison full width -->
+        <div class="card" style="grid-column:1/-1">
+          <h3>🎬 Swing Comparison — You vs <span id="proVideoName">Pro</span></h3>
+          <div class="video-comparison">
+            <div class="video-box">
+              <div class="video-box-label user">🟢 Your Swing</div>
+              <video id="swingVideo" controls style="width:100%;background:#000;max-height:340px"></video>
+            </div>
+            <div class="video-box">
+              <div class="video-box-label pro">🔵 <span id="proVideoLabel">Pro Skeleton</span></div>
+              <video id="proVideo" controls style="width:100%;background:#000;max-height:340px">
+                <source id="proVideoSrc" src="" type="video/mp4">
+              </video>
+              <div id="proVideoMsg" style="padding:30px;text-align:center;color:#555;font-size:0.85em">
+                Select a pro from the ranking to see their swing
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pro Ranking -->
+        <div class="card">
+          <h3>🏆 Pro Similarity Ranking</h3>
+          <p style="font-size:0.8em;color:#666;margin-bottom:12px">Click a pro to compare their swing</p>
+          <div id="rankingList"></div>
+        </div>
+
+        <!-- Key Differences -->
+        <div class="card">
+          <h3>📐 Differences vs <span id="selectedProName">—</span></h3>
+          <p style="font-size:0.75em;color:#555;margin-bottom:12px">
+            Positive (+) = your angle is larger than pro &nbsp;|&nbsp; Negative (−) = your angle is smaller
+          </p>
+          <table class="delta-table">
+            <thead>
+              <tr>
+                <th>Aspect</th>
+                <th>Phase</th>
+                <th>Difference</th>
+                <th>Direction</th>
+              </tr>
+            </thead>
+            <tbody id="deltasBody"></tbody>
+          </table>
+          <div id="deltasEmpty" class="hidden" style="padding:20px;text-align:center;color:#666;font-size:0.9em">
+            ✅ Great match — minimal differences!
+          </div>
+        </div>
+
+        <!-- AI Advice full width -->
+        <div class="card" style="grid-column:1/-1">
+          <h3>🤖 AI Coaching — Swing like <span id="adviceProName">—</span></h3>
+          <div id="adviceLoading" class="hidden" style="padding:20px;text-align:center">
+            <span class="spinner"></span> Getting coaching advice...
+          </div>
+          <div class="advice-box" id="adviceBox" style="display:none"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const BOARD = 'http://192.168.1.110:5000';
+
+let recordedPath = null;
+let currentResults = null;
+
+// ── Health ────────────────────────────────────────────────────────────
+async function checkBoard() {
+  try {
+    const d = await (await fetch('/api/board/health')).json();
+    const ok = d.status==='ok';
+    document.getElementById('statusDot').classList.toggle('online',ok);
+    document.getElementById('boardStatusText').textContent = ok?'Board online':'Board offline';
+    document.getElementById('boardStatusText').style.color = ok?'#7fff7f':'#ff4444';
+  } catch {
+    document.getElementById('statusDot').classList.remove('online');
+    document.getElementById('boardStatusText').textContent='Board offline';
+    document.getElementById('boardStatusText').style.color='#ff4444';
+  }
+}
+setInterval(checkBoard,5000); checkBoard();
+
+// ── Tabs ──────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i)=>
+    t.classList.toggle('active',['record','upload','results'][i]===name));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+// ── Record ────────────────────────────────────────────────────────────
+async function startRecord() {
+  const d = await (await fetch('/api/record/start',{method:'POST'})).json();
+  if(d.error){alert(d.error);return;}
+  recordedPath=d.path;
+  document.getElementById('btnRecord').classList.add('hidden');
+  document.getElementById('btnStop').classList.remove('hidden');
+  document.getElementById('recInfo').classList.remove('hidden');
+  document.getElementById('btnProcess').disabled=true;
+  const iv=setInterval(async()=>{
+    const s=await(await fetch('/api/status')).json();
+    document.getElementById('recFrames').textContent=s.rec_frames||0;
+    if(!s.recording)clearInterval(iv);
+  },500);
+}
+async function stopRecord() {
+  const d=await(await fetch('/api/record/stop',{method:'POST'})).json();
+  document.getElementById('btnStop').classList.add('hidden');
+  document.getElementById('btnRecord').classList.remove('hidden');
+  document.getElementById('btnRecord').textContent='🔴 Record Again';
+  document.getElementById('btnProcess').disabled=false;
+  document.getElementById('recInfo').classList.add('hidden');
+  recordedPath=d.path;
+}
+
+// ── Process ───────────────────────────────────────────────────────────
+async function processVideo() {
+  document.getElementById('progressSection').classList.remove('hidden');
+  document.getElementById('btnProcess').disabled=true;
+  const body=recordedPath?{video_path:recordedPath}:{};
+  await fetch('/api/process',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  pollProgress('progressFill','progressMsg','btnAnalyze');
+}
+function pollProgress(fillId,msgId,btnId) {
+  const iv=setInterval(async()=>{
+    const s=await(await fetch('/api/status')).json();
+    document.getElementById(fillId).style.width=(s.progress||0)+'%';
+    document.getElementById(msgId).textContent=s.message||'';
+    if(s.state==='done'){
+      clearInterval(iv);
+      document.getElementById(btnId).classList.remove('hidden');
+      document.getElementById(msgId).textContent='✅ '+s.message;
+      // Auto-switch to Results tab and load analysis
+      setTimeout(()=>{ analyzeSwing(); }, 800);
+    }else if(s.state==='error'){
+      clearInterval(iv);
+      document.getElementById(msgId).textContent='❌ '+s.message;
+    }
+  },1000);
+}
+
+// ── Upload ────────────────────────────────────────────────────────────
+function handleDrop(e){e.preventDefault();document.getElementById('uploadZone').classList.remove('dragover');const f=e.dataTransfer.files[0];if(f)setUploadFile(f);}
+function handleFile(e){const f=e.target.files[0];if(f)setUploadFile(f);}
+function setUploadFile(file){
+  window._uploadFile=file; window._boardVideoPath=null;
+  document.getElementById('uploadInfo').classList.remove('hidden');
+  document.getElementById('uploadFileName').textContent='💻 '+file.name;
+  document.getElementById('btnUploadProcess').disabled=false;
+  document.querySelectorAll('.board-video-item').forEach(el=>el.classList.remove('selected'));
+}
+async function processUpload(){
+  document.getElementById('uploadProgress').classList.remove('hidden');
+  document.getElementById('btnUploadProcess').disabled=true;
+  if(window._boardVideoPath){
+    document.getElementById('uploadProgressMsg').textContent='Processing board video...';
+    document.getElementById('uploadProgressFill').style.width='5%';
+    await fetch('/api/process',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({video_path:window._boardVideoPath})});
+    pollProgress('uploadProgressFill','uploadProgressMsg','btnUploadAnalyze');
+    return;
+  }
+  if(!window._uploadFile){alert('No file selected!');return;}
+  document.getElementById('uploadProgressMsg').textContent='Uploading to board...';
+  document.getElementById('uploadProgressFill').style.width='10%';
+  const fd=new FormData(); fd.append('video',window._uploadFile);
+  let upData;
+  try{upData=await(await fetch('/api/upload/video',{method:'POST',body:fd})).json();}
+  catch(e){document.getElementById('uploadProgressMsg').textContent='❌ Upload failed: '+e;return;}
+  if(upData.error){document.getElementById('uploadProgressMsg').textContent='❌ '+upData.error;return;}
+  document.getElementById('uploadProgressMsg').textContent='✅ Uploaded ('+upData.size_mb+'MB) — Processing...';
+  document.getElementById('uploadProgressFill').style.width='20%';
+  await fetch('/api/process',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({video_path:upData.path})});
+  pollProgress('uploadProgressFill','uploadProgressMsg','btnUploadAnalyze');
+}
+
+// ── Board Videos ──────────────────────────────────────────────────────
+async function loadBoardVideos(){
+  const c=document.getElementById('boardVideosList');
+  c.innerHTML='<div style="color:#666;font-size:0.85em;padding:12px;text-align:center"><span class="spinner"></span> Loading...</div>';
+  try{
+    const videos=await(await fetch('/api/videos')).json();
+    if(!Array.isArray(videos)||!videos.length){
+      c.innerHTML='<div style="color:#555;font-size:0.85em;padding:12px;text-align:center">No videos on board yet</div>';return;
+    }
+    c.innerHTML='';
+    videos.forEach(v=>{
+      c.innerHTML+=`
+        <div class="board-video-item" id="bv-${v.name}" onclick="selectBoardVideo('${v.path}','${v.name}')">
+          <div><div class="board-video-name">📹 ${v.name}</div><div class="board-video-meta">${v.size_mb} MB</div></div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="board-video-btn" style="background:#2d4a8a;color:#aaccff"
+                    onclick="event.stopPropagation();window.open('${BOARD}/video/file/${v.name}','_blank')">👁 Preview</button>
+            <button class="board-video-btn"
+                    onclick="event.stopPropagation();quickProcess('${v.path}','${v.name}')">⚡ Process</button>
+          </div>
+        </div>`;
+    });
+  }catch(e){c.innerHTML='<div style="color:#ff6666;font-size:0.85em;padding:12px">❌ '+e+'</div>';}
+}
+function selectBoardVideo(path,name){
+  window._boardVideoPath=path; window._uploadFile=null;
+  document.querySelectorAll('.board-video-item').forEach(el=>el.classList.remove('selected'));
+  const el=document.getElementById('bv-'+name); if(el)el.classList.add('selected');
+  document.getElementById('uploadInfo').classList.remove('hidden');
+  document.getElementById('uploadFileName').textContent='📋 '+name+' (on board)';
+  document.getElementById('btnUploadProcess').disabled=false;
+}
+async function quickProcess(path,name){
+  selectBoardVideo(path,name);
+  document.getElementById('uploadProgress').classList.remove('hidden');
+  document.getElementById('uploadProgressMsg').textContent='Processing: '+name;
+  document.getElementById('uploadProgressFill').style.width='5%';
+  document.getElementById('btnUploadProcess').disabled=true;
+  await fetch('/api/process',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({video_path:path})});
+  pollProgress('uploadProgressFill','uploadProgressMsg','btnUploadAnalyze');
+}
+
+// ── Pro video display ─────────────────────────────────────────────────
+function loadProVideo(proId) {
+  const videoEl = document.getElementById('proVideo');
+  const msgEl   = document.getElementById('proVideoMsg');
+  const labelEl = document.getElementById('proVideoLabel');
+  const titleEl = document.getElementById('proVideoName');
+
+  titleEl.textContent = proId;
+  labelEl.textContent = '🔵 ' + proId;
+
+  // Load pro pose video from PC (video_outputs/<pro_id>_pose.mp4)
+  const proVideoUrl = '/api/pro/video/' + proId;
+  
+  // Check if video exists first
+  fetch(proVideoUrl, {method:'HEAD'}).then(r => {
+    if(r.ok) {
+      videoEl.src = proVideoUrl + '?t=' + Date.now();
+      videoEl.style.display = 'block';
+      msgEl.style.display = 'none';
+      videoEl.load();
+    } else {
+      videoEl.style.display = 'none';
+      msgEl.style.display = 'block';
+      msgEl.innerHTML = `<div style="color:#555;padding:20px;text-align:center">
+        <div style="font-size:1.5em;margin-bottom:8px">🎬</div>
+        <div>No pose video for <strong style="color:#aaccff">${proId}</strong></div>
+        <div style="font-size:0.8em;margin-top:6px;color:#444">Run reprocess_pros_to_36.py on PC to generate pose videos</div>
+      </div>`;
+    }
+  }).catch(() => {
+    videoEl.style.display = 'none';
+    msgEl.style.display = 'block';
+    msgEl.innerHTML = `<div style="color:#555;padding:20px;text-align:center">
+      <div style="font-size:1.5em;margin-bottom:8px">🎬</div>
+      <div>No pose video for <strong style="color:#aaccff">${proId}</strong></div>
+    </div>`;
+  });
+}
+
+// ── Analyze ───────────────────────────────────────────────────────────
+async function analyzeSwing(proId=null){
+  switchTab('results');
+  document.getElementById('noResults').classList.add('hidden');
+  document.getElementById('resultsContent').classList.remove('hidden');
+  document.getElementById('adviceLoading').classList.remove('hidden');
+  document.getElementById('adviceBox').style.display='none';
+
+  const r=await fetch('/api/analyze',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(proId?{pro_id:proId}:{})});
+  const data=await r.json();
+  if(data.error){alert(data.error);return;}
+  currentResults=data;
+
+  // Load user processed video via Flask proxy (fixes CORS)
+  const vid=document.getElementById('swingVideo');
+  vid.src='/api/video/processed?t='+Date.now();
+  vid.load();
+
+  // Load pro video
+  loadProVideo(data.selected.pro_id);
+
+  renderResults(data);
+}
+
+function renderResults(data){
+  // Ranking
+  const list=document.getElementById('rankingList');
+  list.innerHTML='';
+  const maxScore=data.ranking[0]?.score||1;
+  data.ranking.forEach((pro,i)=>{
+    const pct=Math.round(pro.score/maxScore*100);
+    const isSel=pro.pro_id===data.selected.pro_id;
+    list.innerHTML+=`
+      <div class="pro-item ${isSel?'selected':''}" onclick="analyzeSwing('${pro.pro_id}')">
+        <div class="pro-rank rank-${i+1}">${i+1}</div>
+        <div class="pro-info">
+          <div class="pro-name">${pro.pro_id}</div>
+          <div class="pro-desc">${pro.desc}</div>
+        </div>
+        <div class="pro-bar-wrap">
+          <div class="pro-bar"><div class="pro-bar-fill" style="width:${pct}%"></div></div>
+          <div style="font-size:0.7em;color:#666;text-align:right;margin-top:2px">${pct}%</div>
+        </div>
+      </div>`;
+  });
+
+  // Delta table with +/- values
+  document.getElementById('selectedProName').textContent=data.selected.pro_id;
+  const tbody=document.getElementById('deltasBody');
+  tbody.innerHTML='';
+  const empty=document.getElementById('deltasEmpty');
+
+  if(!data.deltas.length){
+    empty.classList.remove('hidden');
+  } else {
+    empty.classList.add('hidden');
+    const maxDelta=Math.max(...data.deltas.map(d=>Math.abs(d.delta)));
+    data.deltas.forEach(d=>{
+      const isPos=d.delta>0;
+      const sign=isPos?'+':'';
+      const cls=isPos?'diff-pos':'diff-neg';
+      const dirCls=d.direction.includes('more')?'more':'less';
+      const barPct=Math.round(Math.abs(d.delta)/maxDelta*100);
+      const barColor=isPos?'#ff9966':'#66ccff';
+      const unit=d.metric.includes('angle')?'°':'';
+      tbody.innerHTML+=`
+        <tr>
+          <td>${d.label}</td>
+          <td><span class="phase-badge">${d.phase}</span></td>
+          <td>
+            <span class="diff-val ${cls}">${sign}${d.delta.toFixed(3)}${unit}</span>
+            <div class="diff-bar-wrap" style="margin-top:4px">
+              <div class="diff-bar">
+                <div class="diff-bar-fill" style="width:${barPct}%;background:${barColor}"></div>
+              </div>
+            </div>
+          </td>
+          <td><span class="dir-badge ${dirCls}">${d.direction}</span></td>
+        </tr>`;
+    });
+  }
+
+  // Advice
+  document.getElementById('adviceProName').textContent=data.selected.pro_id;
+  document.getElementById('adviceLoading').classList.add('hidden');
+  const box=document.getElementById('adviceBox');
+  box.style.display='block';
+  box.innerHTML=data.advice
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\n/g,'<br>');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pth
+*.onnx
+*.bie
+*.nef
+*.mp4
+*.avi
+*.mov
+.env
+venv/

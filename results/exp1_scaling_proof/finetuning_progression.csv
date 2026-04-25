@@ -1,0 +1,7 @@
+label_x,ap,kpts_pct,signal_step
+"HRNet MPII
+(base)",0.89,81,45
+"Golf v1
+(1,472 frames)",0.929,95,74
+"Golf v2
+(15,068 frames) ★",0.918,100,105

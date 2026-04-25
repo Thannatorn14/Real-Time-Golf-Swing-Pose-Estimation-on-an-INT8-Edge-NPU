@@ -1,0 +1,13 @@
+id,model,head_type,C1_ap,C2_signal_steps,C2_pct_kpts,C3_hw_compat,C3_note,C4_params_m,C4_npu_feasible,C5_infer_ms,C5_note
+hrnet_mpii_base,HRNet-W48 MPII (base),Heatmap,0.89,45.0,80.6,YES,"Heatmap
+uint8 OK",63.6,YES,6.0,"6ms
+(measured)"
+hrnet_golf_v2,HRNet-W48 Golf v2,Heatmap,0.918,104.6,100.0,YES,"Heatmap
+uint8 OK",63.6,YES,64.0,"64ms
+(measured)"
+rtmpose_golf,RTMPose-S Golf,SimCC,0.971,98.2,100.0,NO,"✗ SimCC
+needs uint16",5.5,YES,300.0,"300ms
+CPU only"
+yolov8n_pose,YOLOv8n-pose,Direct regression,0.5,44.5,70.6,YES,"Regression
+uint8 OK",3.3,YES,,"not
+measured"
