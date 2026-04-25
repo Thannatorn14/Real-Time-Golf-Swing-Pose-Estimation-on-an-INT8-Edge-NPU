@@ -255,9 +255,9 @@ Topics covered: model selection framework, two-stage fine-tuning pipeline, NPU c
 
 ## 👤 Author
 
-**Thannatorn Thongsuk**
-**Jakkaphat Jumratboonsom**  
-**Advisor: Dr. Huang-Chia Shih and Lect. Dr. Petch Sajjacholapunt**  
+**Thannatorn Thongsuk**<br>
+**Jakkaphat Jumratboonsom**<br>  
+**Advisor: Dr. Huang-Chia Shih and Lect. Dr. Petch Sajjacholapunt**<br>  
 Golf Swing Analysis Project · Kneron KL730 · April 2026
 
 ---
